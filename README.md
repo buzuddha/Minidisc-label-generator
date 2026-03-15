@@ -7,3 +7,6 @@ This label maker allows you to search for albums in the MusicBrainz database. In
 # Output
 The label make prints 14 labels & spine labels on page 1.
 The label maker also prints slip case labels on pages 2 and 3.
+
+# How-to
+Download the HTML and double click. It'll run in any mainstream browser.

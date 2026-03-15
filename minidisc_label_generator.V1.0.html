@@ -1,0 +1,735 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>MiniDisc Label Generator</title>
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0;}
+body{font-family:'Helvetica Neue',Helvetica,Arial,sans-serif;background:#1a1a1a;color:#eee;}
+
+/* ── INPUT SCREEN ─────────────────────────────────── */
+#input-screen{min-height:100vh;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:40px 20px;gap:28px;}
+.input-card{background:#242424;border:1px solid #333;border-radius:10px;padding:32px 36px;width:100%;max-width:560px;box-shadow:0 8px 40px rgba(0,0,0,.6);}
+.input-card h1{font-size:22px;font-weight:700;color:#fff;margin-bottom:6px;display:flex;align-items:center;gap:10px;}
+.input-card h1 span{font-size:26px;}
+.input-card .sub{font-size:12px;color:#888;margin-bottom:24px;line-height:1.6;}
+.input-card label{font-size:12px;font-weight:700;color:#aaa;letter-spacing:1px;text-transform:uppercase;display:block;margin-bottom:8px;}
+textarea#mbid-input{width:100%;height:280px;background:#111;border:1px solid #3a3a3a;border-radius:6px;color:#e8e8e8;font-family:'SF Mono','Fira Code','Courier New',monospace;font-size:12.5px;line-height:1.7;padding:12px 14px;resize:vertical;outline:none;transition:border-color .2s;}
+textarea#mbid-input:focus{border-color:#4af;}
+textarea#mbid-input::placeholder{color:#444;}
+.hint{margin-top:10px;font-size:11px;color:#666;line-height:1.6;}
+.hint code{background:#111;border:1px solid #333;border-radius:3px;padding:1px 5px;font-family:monospace;font-size:11px;color:#9cf;}
+.btn-row{display:flex;gap:10px;margin-top:20px;align-items:center;}
+.btn{padding:10px 24px;border-radius:5px;border:none;font-weight:700;font-size:13px;cursor:pointer;white-space:nowrap;transition:background .15s;}
+.btn-p{background:#3af;color:#000;}.btn-p:hover{background:#6cf;}.btn-p:disabled{background:#1a3a5a;color:#2a5a8a;cursor:not-allowed;}
+.btn-s{background:#2a2a2a;color:#aaa;border:1px solid #3a3a3a;}.btn-s:hover{background:#333;color:#fff;}
+#gen-status{font-size:12px;color:#5bf;font-style:italic;margin-left:4px;flex:1;}
+#gen-error{color:#f66;font-size:12px;margin-top:8px;display:none;}
+.eg-btn{background:none;border:none;color:#4af;font-size:11px;cursor:pointer;text-decoration:underline;padding:0;margin-top:8px;display:inline-block;}
+.eg-btn:hover{color:#7cf;}
+
+/* ── SEARCH PANEL ─────────────────────────────────── */
+.search-panel{background:#1a1a1a;border:1px solid #333;border-radius:8px;padding:16px;margin-bottom:20px;}
+.search-panel label{font-size:11px;font-weight:700;color:#888;letter-spacing:1px;text-transform:uppercase;display:block;margin-bottom:8px;}
+.search-row{display:flex;gap:8px;}
+#search-input{flex:1;background:#111;border:1px solid #3a3a3a;border-radius:5px;color:#e8e8e8;font-size:13px;padding:8px 11px;outline:none;transition:border-color .2s;}
+#search-input:focus{border-color:#4af;}
+#search-input::placeholder{color:#444;}
+.btn-search{background:#2a3a4a;color:#7cf;border:1px solid #3a5a7a;border-radius:5px;padding:8px 16px;font-size:13px;font-weight:700;cursor:pointer;white-space:nowrap;}
+.btn-search:hover{background:#3a4a5a;}
+.btn-search:disabled{opacity:.4;cursor:not-allowed;}
+#search-results{margin-top:10px;display:none;max-height:260px;overflow-y:auto;}
+.sr-item{display:flex;align-items:center;gap:10px;padding:8px 10px;border-radius:5px;cursor:pointer;transition:background .12s;border-bottom:1px solid #222;}
+.sr-item:hover{background:#2a2a2a;}
+.sr-item:last-child{border-bottom:none;}
+.sr-thumb{flex-shrink:0;width:36px;height:36px;border-radius:3px;background:#333;object-fit:cover;}
+.sr-thumb-ph{flex-shrink:0;width:36px;height:36px;border-radius:3px;background:#2a2a3a;display:flex;align-items:center;justify-content:center;font-size:16px;}
+.sr-info{flex:1;min-width:0;}
+.sr-title{font-size:13px;font-weight:700;color:#fff;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.sr-artist{font-size:11px;color:#888;margin-top:1px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.sr-year{font-size:11px;color:#555;flex-shrink:0;}
+.sr-add{flex-shrink:0;background:#1a3a1a;border:1px solid #2a6a2a;color:#4f4;border-radius:4px;padding:4px 10px;font-size:11px;font-weight:700;cursor:pointer;white-space:nowrap;}
+.sr-add:hover{background:#2a4a2a;}
+.sr-add.dual-b{background:#1a1a3a;border-color:#2a2a6a;color:#88f;}
+.sr-add.dual-b:hover{background:#2a2a4a;}
+.sr-none{font-size:12px;color:#666;padding:10px;text-align:center;}
+#search-status{font-size:11px;color:#5bf;font-style:italic;margin-top:6px;min-height:16px;}
+
+/* ── TOOLBAR ──────────────────────────────────────── */
+#toolbar{display:none;position:sticky;top:0;z-index:200;align-items:center;gap:16px;flex-wrap:wrap;padding:12px 24px;background:#111;border-bottom:2px solid #2a2a2a;}
+#toolbar.vis{display:flex;}
+#toolbar h1{font-size:15px;font-weight:700;color:#fff;white-space:nowrap;}
+#toolbar p{font-size:11px;line-height:1.5;color:#888;max-width:420px;}
+#pstatus{font-size:11px;color:#5bf;font-style:italic;margin-left:auto;white-space:nowrap;}
+
+/* ── PAGES ────────────────────────────────────────── */
+#pages{display:flex;flex-direction:column;align-items:center;padding:30px 16px;gap:28px;background:#b0b0b0;}
+#pages:empty{display:none;}
+.slbl{font-size:10px;font-weight:700;letter-spacing:2.5px;text-transform:uppercase;color:#555;text-align:center;margin-bottom:2px;}
+.print-page{width:215.9mm;height:279.4mm;background:white;position:relative;overflow:hidden;box-shadow:0 6px 40px rgba(0,0,0,.4);}
+
+/* ── DISC FACE  35.74 × 52.76mm ───────────────────── */
+.disc-face{position:absolute;width:35.74mm;height:52.76mm;background:#111;overflow:visible;display:flex;flex-direction:column;}
+.disc-face-inner{position:absolute;inset:0;overflow:hidden;clip-path:polygon(3mm 0%,100% 0%,100% 100%,0% 100%,0% 3mm);display:flex;flex-direction:column;}
+.disc-hdr{flex-shrink:0;height:5mm;background:#080808;display:flex;align-items:center;justify-content:center;position:relative;}
+.disc-hdr-center{display:flex;align-items:center;gap:1.5mm;padding-right:8mm;padding-left:2mm;}
+.disc-hdr .arrow{width:0;height:0;flex-shrink:0;border-left:1.8mm solid transparent;border-right:1.8mm solid transparent;border-bottom:2.5mm solid #fff;}
+.disc-hdr .htext{font-size:2.4mm;font-weight:800;color:#fff;letter-spacing:.3px;white-space:nowrap;}
+
+.disc-art{flex:1;min-height:0;overflow:hidden;position:relative;background:#222;}
+.disc-art>img{display:block;width:100%;height:100%;object-fit:cover;}
+.disc-art .img-a{position:absolute;inset:0;display:block;width:100%;height:100%;object-fit:cover;clip-path:polygon(0 0,62% 0,38% 100%,0 100%);}
+.disc-art .img-b{position:absolute;inset:0;display:block;width:100%;height:100%;object-fit:cover;clip-path:polygon(62% 0,100% 0,100% 100%,38% 100%);}
+.disc-art .nocover{width:100%;height:100%;display:flex;align-items:center;justify-content:center;font-size:3mm;color:#555;text-align:center;padding:2mm;line-height:1.4;}
+.disc-info{flex-shrink:0;background:#0a0a0a;padding:1mm 1.8mm 1.2mm;border-top:.2mm solid #2a2a2a;}
+.disc-info .di-t{font-weight:700;color:#fff;line-height:1.25;white-space:nowrap;overflow:hidden;font-size:3mm;}
+.disc-info .di-a{color:#fff;font-weight:700;margin-top:.4mm;line-height:1.2;white-space:nowrap;overflow:hidden;font-size:2.5mm;}
+.disc-info .di-y{color:#fff;font-weight:700;margin-top:.3mm;font-size:2mm;}
+
+/* ── SPINE  59.94 × 2.87mm ────────────────────────── */
+.disc-spine{position:absolute;width:59.94mm;height:2.87mm;background:#111;overflow:hidden;display:flex;align-items:center;padding:0 1mm 0 1.2mm;}
+.disc-spine .sp-text{flex:1;color:#ccc;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;letter-spacing:.15px;font-size:1.9mm;}
+.disc-spine .sp-md{flex-shrink:0;color:#555;font-weight:700;font-size:1.6mm;margin-left:1.5mm;}
+
+/* ── CASE STICKER  70×50mm landscape (snap-together MD case) ── */
+.case-card{position:absolute;width:70mm;height:50mm;background:#0a0a0a;overflow:hidden;display:flex;flex-direction:row;}
+.case-art{flex:1;min-width:0;overflow:hidden;position:relative;background:#1a1a1a;}
+.case-art>img{display:block;width:100%;height:100%;object-fit:cover;}
+.case-art .img-a{position:absolute;inset:0;display:block;width:100%;height:100%;object-fit:cover;clip-path:polygon(0 0,60% 0,40% 100%,0 100%);}
+.case-art .img-b{position:absolute;inset:0;display:block;width:100%;height:100%;object-fit:cover;clip-path:polygon(60% 0,100% 0,100% 100%,40% 100%);}
+.case-art .nocover{width:100%;height:100%;display:flex;align-items:center;justify-content:center;font-size:5px;color:#444;text-align:center;padding:3mm;line-height:1.4;}
+/* Right-side vertical info strip — text rotated -90° (reads bottom-to-top) */
+.case-strip{width:18mm;flex-shrink:0;background:#0a0a0a;position:relative;overflow:hidden;border-left:.3mm solid #222;}
+.case-strip-inner{position:absolute;width:44mm;left:50%;top:50%;transform:translate(-50%,-50%) rotate(-90deg);overflow:hidden;}
+.case-strip .ci-t{font-weight:700;color:#fff;line-height:1.2;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;font-size:3.8mm;}
+.case-strip .ci-a{color:#fff;font-weight:700;margin-top:.6mm;line-height:1.2;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;font-size:3mm;}
+.case-strip .ci-bot{display:flex;align-items:center;justify-content:space-between;margin-top:.5mm;}
+.case-strip .ci-y{color:#aaa;font-size:2.6mm;font-weight:600;}
+.case-strip .ci-md-txt{font-size:2.5mm;font-weight:900;color:#666;border:.3mm solid #555;border-radius:.4mm;padding:.2mm .5mm;line-height:1;}
+.case-badge{position:absolute;top:2mm;left:2mm;font-size:3.2mm;font-weight:900;color:#fff;border:.35mm solid rgba(255,255,255,.6);border-radius:.5mm;padding:.2mm .6mm;line-height:1;letter-spacing:-.2px;z-index:10;background:rgba(0,0,0,.5);}
+
+/* ── PRINT ────────────────────────────────────────── */
+@media print{
+  *{-webkit-print-color-adjust:exact;print-color-adjust:exact;}
+  html,body{margin:0 !important;padding:0 !important;background:white;}
+  #toolbar,#input-screen,.slbl{display:none !important;}
+  #pages{padding:0 !important;gap:0 !important;background:white;display:block;}
+  .print-page{
+    box-shadow:none;
+    break-after:page;page-break-after:always;
+    break-inside:avoid;page-break-inside:avoid;
+    margin:0 !important;padding:0 !important;
+    overflow:hidden;
+  }
+  .print-page:last-child{break-after:auto;page-break-after:auto;}
+  @page{size:8.5in 11in;margin:0mm;}
+}
+</style>
+</head>
+<body>
+
+<!-- INPUT SCREEN -->
+<div id="input-screen">
+  <div class="input-card">
+    <h1><span>🎵</span> MiniDisc Label Generator</h1>
+    <p class="sub">Paste up to 14 MusicBrainz Release or Release-Group IDs, one per line.<br>
+    For a disc with two albums, put both IDs on one line separated by <code>/</code>.</p>
+    <!-- SEARCH -->
+    <div class="search-panel">
+      <label>Search for an album</label>
+      <div class="search-row">
+        <input type="text" id="search-input" placeholder="e.g. Blondie No Exit  or  Beatles Revolver" autocomplete="off">
+        <button class="btn-search" id="search-btn">Search</button>
+      </div>
+      <div id="search-status"></div>
+      <div id="search-results"></div>
+    </div>
+
+    <label for="mbid-input">MusicBrainz IDs</label>
+    <textarea id="mbid-input" spellcheck="false" placeholder="e.g.
+06281c4d-112d-33b0-a25b-df63b420eae7
+f44d1709-77aa-3b62-a2f4-e9800a0e8da3
+06281c4d-112d-33b0-a25b-df63b420eae7/92c8bc09-7dd2-3dcd-893a-7e12c6c70b1b"></textarea>
+    <div class="hint">Find IDs at <strong>musicbrainz.org</strong> — copy the UUID from any release or release-group URL. Max <strong>14 lines</strong>.</div>
+    <button class="eg-btn" id="eg-btn">Load example (14 albums)</button>
+    <div id="gen-error"></div>
+    <div class="btn-row">
+      <button class="btn btn-p" id="gen-btn">Generate Labels</button>
+      <span id="gen-status"></span>
+    </div>
+  </div>
+</div>
+
+<!-- TOOLBAR -->
+<div id="toolbar">
+  <div>
+    <h1>🎵 MiniDisc Labels</h1>
+    <p><strong>Print:</strong> US Letter · Margins = None · Scale = 100% · Background graphics ON</p>
+  </div>
+  <div id="pstatus"></div>
+  <button class="btn btn-s" id="edit-btn">✏ Edit / New List</button>
+  <button class="btn btn-p" id="print-btn">🖨 Print</button>
+</div>
+
+<!-- LABEL PAGES -->
+<div id="pages"></div>
+
+<script>
+
+/* ── Example MBIDs (the original 14 albums) ─────── */
+var EXAMPLE_MBIDS = [
+  '06281c4d-112d-33b0-a25b-df63b420eae7/92c8bc09-7dd2-3dcd-893a-7e12c6c70b1b',
+  'af14217d-d5e3-3367-baef-90cf418ca79d',
+  '9bb49a37-cdca-3e18-882a-09a4fd5c32e0',
+  'd3a16633-a0b3-3dbd-ab73-dcb6f79bce55',
+  '3c50e8a5-1f87-3b7e-b576-3c5083d5f6b3',
+  'c3733436-fcba-3c08-b082-d548df5c5139',
+  '20151063-d6d9-3131-91ac-5c4a7a0f5f01',
+  'c5a0411f-374e-360d-9364-3ddec3007162',
+  'd85b9684-4277-3565-b89b-115c8b4b7fd3',
+  'c47e9f40-df20-4694-87ab-f8e6f8e09abc/5c5589a7-1561-3b45-9ea9-650888413b4e',
+  '4d90c45e-691e-4723-aaa2-26f576c7e64a',
+  'a2c447f9-2439-3af6-80ff-f26207a788e3',
+  '25bdfd28-72ca-3d1f-88fc-dcf67df91720',
+  '1dfc2e42-9cf3-461e-9396-eebaff34ccc8'
+].join('\n');
+
+/* ── Wire up buttons (safe — no inline onclick) ─── */
+document.addEventListener('DOMContentLoaded', function() {
+  document.getElementById('eg-btn').addEventListener('click', loadExample);
+  document.getElementById('search-btn').addEventListener('click', doSearch);
+  document.getElementById('search-input').addEventListener('keydown', function(e){
+    if (e.key === 'Enter') doSearch();
+  });
+  document.getElementById('gen-btn').addEventListener('click', generate);
+  document.getElementById('edit-btn').addEventListener('click', showInput);
+  document.getElementById('print-btn').addEventListener('click', function(){ window.print(); });
+});
+
+/* ── Album search ────────────────────────────────── */
+async function doSearch() {
+  var q = document.getElementById('search-input').value.trim();
+  if (!q) return;
+
+  var btn     = document.getElementById('search-btn');
+  var statusEl= document.getElementById('search-status');
+  var resultsEl = document.getElementById('search-results');
+
+  btn.disabled = true;
+  statusEl.textContent = 'Searching\u2026';
+  resultsEl.style.display = 'none';
+  resultsEl.innerHTML = '';
+
+  var enc = encodeURIComponent(q);
+  var url = MB + '/release-group/?query=' + enc + '&type=album&limit=10&fmt=json&client=MDLabelGen-2.0';
+  var j = await safeFetch(url, true);
+
+  btn.disabled = false;
+
+  if (!j || !j['release-groups'] || !j['release-groups'].length) {
+    statusEl.textContent = 'No results found.';
+    return;
+  }
+
+  statusEl.textContent = j['release-groups'].length + ' results — click + to add to your list';
+  resultsEl.style.display = 'block';
+
+  j['release-groups'].forEach(function(rg) {
+    var artist = extractArtist(rg);
+    var year   = (rg['first-release-date'] || '').slice(0, 4);
+    var mbid   = rg.id;
+
+    var item = document.createElement('div');
+    item.className = 'sr-item';
+
+    /* Thumbnail — try to load from CAA; fallback to emoji */
+    var thumb;
+    var thumbUrl = CAA + '/release-group/' + mbid + '/front-250';
+    thumb = document.createElement('img');
+    thumb.className = 'sr-thumb';
+    thumb.alt = '';
+    thumb.onerror = function() {
+      var ph = document.createElement('div');
+      ph.className = 'sr-thumb-ph';
+      ph.textContent = '\uD83C\uDFB5';
+      thumb.parentNode && thumb.parentNode.replaceChild(ph, thumb);
+    };
+    /* Load image without going through the rate-limited safeFetch */
+    thumb.src = thumbUrl;
+
+    var info = document.createElement('div');
+    info.className = 'sr-info';
+
+    var title = document.createElement('div');
+    title.className = 'sr-title';
+    title.textContent = rg.title;
+
+    var art = document.createElement('div');
+    art.className = 'sr-artist';
+    art.textContent = artist;
+
+    info.appendChild(title);
+    info.appendChild(art);
+
+    var yr = document.createElement('div');
+    yr.className = 'sr-year';
+    yr.textContent = year;
+
+    /* Add button — inserts MBID as a new line */
+    var addBtn = document.createElement('button');
+    addBtn.className = 'sr-add';
+    addBtn.textContent = '+ Add';
+    addBtn.title = mbid;
+    addBtn.addEventListener('click', function(e) {
+      e.stopPropagation();
+      insertMbid(mbid);
+      addBtn.textContent = '\u2713 Added';
+      addBtn.style.background = '#0a2a0a';
+      addBtn.disabled = true;
+    });
+
+    /* Add as dual-B button (for combining two albums on one disc) */
+    var dualBtn = document.createElement('button');
+    dualBtn.className = 'sr-add dual-b';
+    dualBtn.textContent = '+ Add as B-side';
+    dualBtn.title = 'Append /' + mbid + ' to the last line';
+    dualBtn.addEventListener('click', function(e) {
+      e.stopPropagation();
+      appendDual(mbid);
+      dualBtn.textContent = '\u2713 Added';
+      dualBtn.style.background = '#0a0a2a';
+      dualBtn.disabled = true;
+    });
+
+    item.appendChild(thumb);
+    item.appendChild(info);
+    item.appendChild(yr);
+    item.appendChild(addBtn);
+    item.appendChild(dualBtn);
+    resultsEl.appendChild(item);
+  });
+}
+
+/* Insert a new MBID line into the textarea */
+function insertMbid(mbid) {
+  var ta = document.getElementById('mbid-input');
+  var val = ta.value;
+  var lines = val.trim().split(/[\r\n]+/).filter(function(l){ return l.trim(); });
+  if (lines.length >= 14) {
+    alert('Already at 14 albums (the maximum for one disc sheet).');
+    return;
+  }
+  ta.value = (val.trim() ? val.trim() + '\n' : '') + mbid + '\n';
+  ta.scrollTop = ta.scrollHeight;
+}
+
+/* Append /MBID to the last line (for dual albums on one disc) */
+function appendDual(mbid) {
+  var ta = document.getElementById('mbid-input');
+  var val = ta.value.trimEnd();
+  if (!val) { insertMbid(mbid); return; }
+  var lines = val.split(/[\r\n]+/);
+  var last  = lines[lines.length - 1].trim();
+  if (last.indexOf('/') !== -1) {
+    alert('A line can only hold 2 MBIDs (one disc = two albums max). Add as a new line instead.');
+    return;
+  }
+  lines[lines.length - 1] = last + '/' + mbid;
+  ta.value = lines.join('\n') + '\n';
+  ta.scrollTop = ta.scrollHeight;
+}
+
+function loadExample() {
+  document.getElementById('mbid-input').value = EXAMPLE_MBIDS;
+}
+
+function showInput() {
+  document.getElementById('input-screen').style.display = 'flex';
+  document.getElementById('toolbar').classList.remove('vis');
+}
+
+/* ── MB / CAA helpers ────────────────────────────── */
+var CAA = 'https://coverartarchive.org';
+var MB  = 'https://musicbrainz.org/ws/2';
+
+/* MusicBrainz enforces 1 req/sec for anonymous clients.
+   This wrapper enforces a 1100ms global gap and retries 429/503. */
+var _lastMbReq = 0;
+
+async function safeFetch(url, asJson) {
+  var isMB = url.indexOf('musicbrainz.org') !== -1;
+  var MAX_RETRIES = 4;
+  for (var attempt = 0; attempt <= MAX_RETRIES; attempt++) {
+    /* Only rate-limit MusicBrainz API calls (1 req/sec rule).
+       Cover Art Archive has no such restriction. */
+    if (isMB) {
+      var now = Date.now();
+      var wait = Math.max(0, 1250 - (now - _lastMbReq));
+      if (wait > 0) await delay(wait);
+      _lastMbReq = Date.now();
+    }
+    try {
+      var r = await fetch(url);
+      if (r.status === 429 || r.status === 503) {
+        var backoff = 1500 * Math.pow(2, attempt);
+        console.warn((isMB ? 'MB' : 'CAA') + ' ' + r.status + ', backing off ' + backoff + 'ms');
+        await delay(backoff);
+        continue;
+      }
+      if (!r.ok) return null;
+      return asJson ? r.json() : r;
+    } catch(e) {
+      if (attempt === MAX_RETRIES) return null;
+      await delay(isMB ? 1500 : 500);
+    }
+  }
+  return null;
+}
+
+/* Robustly pull artist name from any MB response */
+function extractArtist(j) {
+  var ac = j['artist-credit'] || j['artistCredit'] || [];
+  if (!ac.length) return 'Unknown Artist';
+  // Concatenate all artist-credit segments (handles "Artist A & Artist B")
+  return ac.map(function(seg) {
+    var name = (seg.artist && seg.artist.name) || seg.name || '';
+    var join = seg.joinphrase || '';
+    return name + join;
+  }).join('').trim() || 'Unknown Artist';
+}
+
+async function fetchAlbumMeta(mbid) {
+  // Try as release-group
+  var j = await safeFetch(MB + '/release-group/' + mbid + '?fmt=json&inc=artist-credits&client=MDLabelGen-2.0', true);
+  if (j && j.title) {
+    var artist = extractArtist(j);
+    var year = (j['first-release-date'] || '').slice(0, 4);
+    return { rgid: mbid, artist: artist, album: j.title, year: year };
+  }
+  // Try as release
+  j = await safeFetch(MB + '/release/' + mbid + '?fmt=json&inc=artist-credits+release-groups&client=MDLabelGen-2.0', true);
+  if (j && j.title) {
+    return {
+      rgid:   (j['release-group'] && j['release-group'].id) || null,
+      artist: extractArtist(j),
+      album:  j.title,
+      year:   (j.date || '').slice(0, 4)
+    };
+  }
+  return null;
+}
+
+async function caaGroup(rgid) {
+  if (!rgid) return null;
+  try {
+    var r = await fetch(CAA + '/release-group/' + rgid + '/front-500');
+    var ct = r.headers.get('content-type') || '';
+    if (r.ok && ct.indexOf('image/') === 0) return r.url;
+  } catch(e) {}
+  var j = await safeFetch(CAA + '/release-group/' + rgid, true);
+  if (!j || !j.images || !j.images.length) return null;
+  var im = j.images.filter(function(x){ return x.front; })[0] || j.images[0];
+  return (im.thumbnails && (im.thumbnails['500'] || im.thumbnails['large'])) || im.image || null;
+}
+
+async function caaRelease(rid) {
+  var j = await safeFetch(CAA + '/release/' + rid, true);
+  if (!j || !j.images || !j.images.length) return null;
+  var im = j.images.filter(function(x){ return x.front; })[0] || j.images[0];
+  return (im.thumbnails && (im.thumbnails['500'] || im.thumbnails['large'])) || im.image || null;
+}
+
+async function mbSearch(type, artist, album) {
+  var field = type === 'release' ? 'release' : 'releasegroup';
+  var q = encodeURIComponent(field + ':"' + album + '" AND artist:"' + artist + '"');
+  var j = await safeFetch(MB + '/' + type + '/?query=' + q + '&limit=6&fmt=json&client=MDLabelGen-2.0', true);
+  return (j && (type === 'release' ? j.releases : j['release-groups'])) || [];
+}
+
+async function fetchCover(rgid, artist, album) {
+  var u = await caaGroup(rgid);
+  if (u) return u;
+  var rels = await mbSearch('release', artist, album);
+  for (var i = 0; i < rels.length; i++) { u = await caaRelease(rels[i].id); if (u) return u; }
+  var rgs = await mbSearch('release-group', artist, album);
+  for (var i = 0; i < rgs.length; i++) { u = await caaGroup(rgs[i].id); if (u) return u; }
+  return null;
+}
+
+function delay(ms) { return new Promise(function(r){ setTimeout(r, ms); }); }
+
+/* ── Input parsing ───────────────────────────────── */
+function parseMbidInput(raw) {
+  var UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+  var lines = raw.trim().split(/[\r\n]+/).map(function(l){ return l.trim(); })
+                 .filter(function(l){ return l && l[0] !== '#'; });
+  if (lines.length === 0) throw new Error('Please enter at least one MBID.');
+  if (lines.length > 14)  throw new Error('Max 14 lines (you have ' + lines.length + ').');
+  return lines.map(function(line, i) {
+    var parts = line.split('/').map(function(s){ return s.trim(); });
+    if (parts.length > 2) throw new Error('Line ' + (i+1) + ': max 2 IDs per line.');
+    parts.forEach(function(p, pi) {
+      if (!UUID_RE.test(p)) {
+        var loc = parts.length > 1 ? ' part ' + (pi+1) : '';
+        throw new Error('Line ' + (i+1) + loc + ': not a valid UUID: ' + p);
+      }
+    });
+    return { mbid: parts[0], mbid_b: parts[1] || null };
+  });
+}
+
+/* ── DOM helpers ─────────────────────────────────── */
+function el(tag, cls) { var e = document.createElement(tag); if (cls) e.className = cls; return e; }
+function esc(s) {
+  return (s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+}
+function pos(e, l, t) { e.style.left = l + 'mm'; e.style.top = t + 'mm'; }
+function mkImg(url, cls) {
+  var i = el('img', cls || ''); i.alt = ''; i.src = url;
+  i.onerror = function(){ i.remove(); }; return i;
+}
+function fitText(elem, maxMm, minMm) {
+  elem.style.whiteSpace = 'nowrap';
+  elem.style.overflow   = 'hidden';
+  for (var s = maxMm; s >= minMm; s -= 0.1) {
+    elem.style.fontSize = s.toFixed(1) + 'mm';
+    if (elem.scrollWidth <= elem.offsetWidth + 1) return;
+  }
+}
+
+/* ── Layout constants (mm) ───────────────────────── */
+var DFW=35.74, DFH=52.76;
+var D_CG=5.5,  D_RG=4.5;
+var D_ML=28.22, D_MT=23.84;
+var DSW=59.94, DSH=2.87;
+var SPINE_VIS_W = DSH;
+var SPINE_VIS_H = DSW;
+var SPINE_ZONE_X = D_ML + 2*(DFW + D_CG);
+var SPINE_ZONE_Y = D_MT + 3*(DFH + D_RG);
+var SPINE_ZONE_W = 2*DFW + D_CG;
+var CW=70, CH=50, C_CG=5, C_RG=6;
+// Page 1: 4 cols × 2 rows = 8  |  Page 2: 3 cols × 2 rows = 6  (14 total)
+var C_LAYOUT = [
+  { cols:2, rows:4, ml:35.45, mt:30.7 },
+  { cols:2, rows:3, ml:35.45, mt:(279.4-3*50-2*6)/2 }
+];
+var C_PER_PAGE = 8;
+
+/* ── Disc face ───────────────────────────────────── */
+function makeDiscFace(a, U) {
+  var wrap  = el('div','disc-face');
+  var inner = el('div','disc-face-inner');
+  var hdr   = el('div','disc-hdr');
+  var ctr   = el('div','disc-hdr-center');
+  ctr.appendChild(el('div','arrow'));
+  var htx = el('div','htext'); htx.textContent = 'INSERT THIS END'; ctr.appendChild(htx);
+  hdr.appendChild(ctr);
+  inner.appendChild(hdr);
+
+  var art = el('div','disc-art');
+  if (a.dual) {
+    if (U.a) art.appendChild(mkImg(U.a,'img-a'));
+    if (U.b) art.appendChild(mkImg(U.b,'img-b'));
+    if (!U.a && !U.b) { var nc=el('div','nocover'); nc.textContent=a.album+' / '+a.album_b; art.appendChild(nc); }
+  } else {
+    if (U.a) art.appendChild(mkImg(U.a));
+    else { var nc=el('div','nocover'); nc.textContent=a.album; art.appendChild(nc); }
+  }
+  inner.appendChild(art);
+
+  var info    = el('div','disc-info');
+  var dAlbum  = a.dual ? a.album+' / '+a.album_b : a.album;
+  var tEl     = el('div','di-t'); tEl.textContent = dAlbum;    info.appendChild(tEl);
+  var aEl     = el('div','di-a'); aEl.textContent = a.artist;  info.appendChild(aEl);
+  if (a.year) { var yEl=el('div','di-y'); yEl.textContent=a.year; info.appendChild(yEl); }
+  inner.appendChild(info);
+  wrap.appendChild(inner);
+
+  return { wrap: wrap, tEl: tEl, aEl: aEl };
+}
+
+/* ── Disc spine ──────────────────────────────────── */
+function makeDiscSpine(a) {
+  var wrap = el('div','disc-spine');
+  var txt  = el('div','sp-text');
+  var sh   = a.dual ? a.album.split(' ').slice(0,3).join(' ')+' / '+(a.album_b||'') : a.album;
+  txt.textContent = a.artist + '  —  ' + sh + (a.year ? '  ·  '+a.year : '');
+  wrap.appendChild(txt);
+  var md = el('div','sp-md'); md.textContent='md'; wrap.appendChild(md);
+  return { wrap: wrap, txt: txt };
+}
+
+/* ── Case card ───────────────────────────────────── */
+function makeCaseCard(a, U) {
+  var wrap = el('div','case-card');
+
+  // Art area (left, flex:1)
+  var art = el('div','case-art');
+  if (a.dual) {
+    if (U.a) art.appendChild(mkImg(U.a,'img-a'));
+    if (U.b) art.appendChild(mkImg(U.b,'img-b'));
+    if (!U.a && !U.b) { var nc=el('div','nocover'); nc.textContent=a.album+' / '+a.album_b; art.appendChild(nc); }
+  } else {
+    if (U.a) art.appendChild(mkImg(U.a));
+    else { var nc=el('div','nocover'); nc.textContent=a.album; art.appendChild(nc); }
+  }
+  wrap.appendChild(art);
+
+  // Right strip with text rotated -90deg (reads bottom-to-top)
+  var strip  = el('div','case-strip');
+  var inner  = el('div','case-strip-inner');
+  var dAlbum = a.dual ? a.album+' / '+a.album_b : a.album;
+  var tEl    = el('div','ci-t');       tEl.textContent  = dAlbum;    inner.appendChild(tEl);
+  var aEl    = el('div','ci-a');       aEl.textContent  = a.artist;  inner.appendChild(aEl);
+  var bot    = el('div','ci-bot');
+  var yEl    = el('span','ci-y');      yEl.textContent  = a.year||''; bot.appendChild(yEl);
+  var mEl    = el('span','ci-md-txt'); mEl.textContent  = 'md';       bot.appendChild(mEl);
+  inner.appendChild(bot);
+  strip.appendChild(inner);
+  wrap.appendChild(strip);
+
+  return { wrap: wrap, tEl: tEl, aEl: aEl };
+}
+
+/* ── Render all pages ────────────────────────────── */
+function renderPages(ALBUMS, urls) {
+  var pages = document.getElementById('pages');
+  pages.innerHTML = '';
+  var n = ALBUMS.length;
+  var spineGap = n > 1 ? (SPINE_ZONE_W - n*SPINE_VIS_W) / (n-1) : 0;
+
+  /* Sheet 1 */
+  var lbl1 = el('div','slbl');
+  lbl1.textContent = 'Sheet 1  ·  Disc Face Labels (35.74×52.76mm) + Spine Strips (59.94×2.87mm)';
+  pages.appendChild(lbl1);
+  var pg1  = el('div','print-page');
+  var fitQ1 = [], spineQ = [];
+
+  ALBUMS.forEach(function(a, i) {
+    var col = i%4, row = Math.floor(i/4);
+    var r   = makeDiscFace(a, urls[i]);
+    pos(r.wrap, D_ML+col*(DFW+D_CG), D_MT+row*(DFH+D_RG));
+    pg1.appendChild(r.wrap);
+    fitQ1.push({ tEl: r.tEl, aEl: r.aEl });
+
+    var sp = makeDiscSpine(a);
+    var vx = SPINE_ZONE_X + i*(SPINE_VIS_W+spineGap);
+    sp.wrap.style.left            = vx + 'mm';
+    sp.wrap.style.top             = (SPINE_ZONE_Y + DSW) + 'mm';
+    sp.wrap.style.transform       = 'rotate(-90deg)';
+    sp.wrap.style.transformOrigin = 'top left';
+    pg1.appendChild(sp.wrap);
+    spineQ.push(sp.txt);
+  });
+  pages.appendChild(pg1);
+  requestAnimationFrame(function(){
+    setTimeout(function(){
+      fitQ1.forEach(function(q){ fitText(q.tEl,3.0,1.8); fitText(q.aEl,2.6,1.8); });
+      spineQ.forEach(function(t){ fitText(t,1.9,1.4); });
+    }, 100);
+  });
+
+  /* Sheets 2+: snap-case stickers, portrait 50×70mm
+     Page 1: 4 cols × 2 rows = 8  |  Page 2: 3 cols × 2 rows = 6 */
+  var caseAlbums = ALBUMS.slice();
+  C_LAYOUT.forEach(function(layout, pi) {
+    var slice = caseAlbums.splice(0, layout.cols * layout.rows);
+    if (!slice.length) return;
+    var lbl = el('div','slbl');
+    lbl.textContent = 'Sheet '+(pi+2)+'  ·  Snap-Case Stickers — 50×70mm  ·  peel and stick to outside of case';
+    pages.appendChild(lbl);
+    var pg   = el('div','print-page');
+    var fitQ = [];
+    var base = (pi === 0) ? 0 : C_LAYOUT[0].cols * C_LAYOUT[0].rows;
+    slice.forEach(function(a, i) {
+      var col = i % layout.cols, row = Math.floor(i / layout.cols);
+      var r   = makeCaseCard(a, urls[base + i]);
+      r.wrap.style.left = (layout.ml + col*(CW+C_CG)) + 'mm';
+      r.wrap.style.top  = (layout.mt + row*(CH+C_RG)) + 'mm';
+      pg.appendChild(r.wrap);
+      fitQ.push({ tEl: r.tEl, aEl: r.aEl });
+    });
+    pages.appendChild(pg);
+    requestAnimationFrame(function(){
+      setTimeout(function(){
+        fitQ.forEach(function(q){ fitText(q.tEl,4.0,1.8); fitText(q.aEl,3.2,1.6); });
+      }, 500);
+    });
+  });
+}
+
+/* ── Main generate pipeline ──────────────────────── */
+async function generate() {
+  var rawInput  = document.getElementById('mbid-input').value;
+  var statusEl  = document.getElementById('gen-status');
+  var errorEl   = document.getElementById('gen-error');
+  var btn       = document.getElementById('gen-btn');
+  errorEl.style.display = 'none';
+
+  var parsed;
+  try { parsed = parseMbidInput(rawInput); }
+  catch(e) {
+    errorEl.textContent = '⚠ ' + e.message;
+    errorEl.style.display = 'block';
+    return;
+  }
+
+  btn.disabled = true;
+  var total = parsed.length;
+
+  /* Step 1: fetch metadata */
+  var ALBUMS = [];
+  for (var i = 0; i < parsed.length; i++) {
+    var entry = parsed[i];
+    statusEl.textContent = 'Fetching metadata… ' + (i+1) + '/' + total;
+    var metaA = await fetchAlbumMeta(entry.mbid);
+    if (!metaA) {
+      // Don't abort the whole run — insert a placeholder and keep going
+      metaA = { rgid:null, artist:'Unknown Artist',
+                album:'(unresolved: line '+(i+1)+')', year:'' };
+      errorEl.innerHTML += '⚠ Line '+(i+1)+' not resolved — continuing with placeholder.<br>';
+      errorEl.style.display = 'block';
+    }
+    var metaB = null;
+    if (entry.mbid_b) { metaB = await fetchAlbumMeta(entry.mbid_b); }
+
+    ALBUMS.push({
+      artist:  metaA.artist,
+      album:   metaA.album,
+      album_b: metaB ? metaB.album  : null,
+      year:    metaA.year + (metaB && metaB.year ? ' / '+metaB.year : ''),
+      rgid:    metaA.rgid,
+      rgid_b:  metaB ? metaB.rgid   : null,
+      sa_b:    metaB ? metaB.artist : null,
+      st_b:    metaB ? metaB.album  : null,
+      dual:    !!metaB
+    });
+  }
+
+  /* Step 2: fetch covers */
+  statusEl.textContent = 'Fetching cover art… 0/' + total;
+  var urls = [];
+  for (var i = 0; i < ALBUMS.length; i++) {
+    var a    = ALBUMS[i];
+    var urlA = await fetchCover(a.rgid, a.artist, a.album);
+    var urlB = null;
+    if (a.dual) { urlB = await fetchCover(a.rgid_b, a.sa_b||a.artist, a.st_b||a.album_b||''); }
+    urls.push({ a: urlA, b: urlB });
+    statusEl.textContent = 'Fetching cover art… ' + (i+1) + '/' + total;
+  }
+
+  /* Step 3: render */
+  renderPages(ALBUMS, urls);
+
+  var found = urls.filter(function(u){ return u.a; }).length;
+  document.getElementById('input-screen').style.display = 'none';
+  document.getElementById('toolbar').classList.add('vis');
+  document.getElementById('pstatus').textContent =
+    '✅ ' + found + '/' + total + ' covers loaded — ready to print';
+
+  btn.disabled = false;
+  statusEl.textContent = '';
+}
+</script>
+</body>
+</html>
